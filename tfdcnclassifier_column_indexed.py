@@ -22,12 +22,11 @@ from scipy import sparse
 
 class TFDCNClassifier(object):
     """
-        Logistic Regressor
-        Compatible with sklearn APIs: X is dense matrix or scipy.sparse.csr_matrix
+        Deep Cross Network
     """
     def __init__(self,
         feature_num,
-        field_num, # It reduces to vanilla FM + W&D when field num == feature num
+        field_num,
         factor_num=10,
         deep_layer_nodes=[32, 32],
         cross_layer_num=2,
@@ -170,7 +169,7 @@ class TFDCNClassifier(object):
                         epoch, global_step, cur_loss))
             if cur_loss < best_loss:
                 best_loss = cur_loss
-                self.saver.save(sess, '{}/model'.format(self.chkpt_dir))
+        self.saver.save(sess, '{}/model'.format(self.chkpt_dir))
 
     def _build_graph(self):
         """
@@ -188,7 +187,7 @@ class TFDCNClassifier(object):
             self.logits = self._forward_pass()
 
             # loss function
-            self.loss = tf.reduce_mean(
+            self.loss = tf.reduce_sum(
                 tf.nn.sigmoid_cross_entropy_with_logits(
                 logits=self.logits, labels=self.y)) \
                 + self.l2_weight * tf.nn.l2_loss(self.proj_w) \
@@ -319,7 +318,9 @@ class TFDCNClassifier(object):
         """
         # embedding layer
         embedding_t = tf.nn.embedding_lookup(self.embeddings, self.X_colind) # shaped [-1, field_num, factor_num]
-        input_layer = tf.reshape(embedding_t, shape=[-1, self.field_num * self.factor_num]) # shaped [-1, field_num * factor_num]
+        input_layer = tf.multiply(embedding_t,
+            tf.reshape(self.X_colval, shape=[-1, self.field_num, 1])) # shaped [-1, field_num, factor_num]
+        input_layer = tf.reshape(input_layer, shape=[-1, self.field_num * self.factor_num]) # shaped [-1, field_num * factor_num]
 
         # cross term
         cross_h = input_layer
